@@ -5,37 +5,57 @@ const CELL_SIZE: u8 = 27;
 
 #[derive(Debug, Copy, Clone)]
 enum Cmd {
-    Add,
-    Sub,
-    Right,
-    Left,
+    Add(u8),
+    Sub(u8),
+    Right(usize),
+    Left(usize),
     Put,
 }
 
-impl fmt::Display for Cmd {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Cmd {
+    fn len(self) -> usize {
         match self {
-            Cmd::Add => f.write_str("+"),
-            Cmd::Sub => f.write_str("-"),
-            Cmd::Right => f.write_str(">"),
-            Cmd::Left => f.write_str("<"),
-            Cmd::Put => f.write_str("."),
+            Cmd::Add(n) => n as usize,
+            Cmd::Sub(n) => n as usize,
+            Cmd::Right(n) => n,
+            Cmd::Left(n) => n,
+            Cmd::Put => 1,
         }
     }
 }
 
-fn closest_u8_change(now: u8, target: u8) -> (u8, Cmd) {
+impl fmt::Display for Cmd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        macro_rules! n_times {
+            ($f:ident, $n:expr, $c:expr) => {
+                for _ in 0..$n {
+                    $f.write_str($c)?;
+                }
+            };
+        }
+        match self {
+            Cmd::Add(n) => n_times!(f, *n, "+"),
+            Cmd::Sub(n) => n_times!(f, *n, "-"),
+            Cmd::Right(n) => n_times!(f, *n, ">"),
+            Cmd::Left(n) => n_times!(f, *n, "<"),
+            Cmd::Put => f.write_str(".")?,
+        }
+        Ok(())
+    }
+}
+
+fn closest_u8_change(now: u8, target: u8) -> Cmd {
     let a = if now <= target {
-        (target - now, Cmd::Add)
+        Cmd::Add(target - now)
     } else {
-        (now - target, Cmd::Sub)
+        Cmd::Sub(now - target)
     };
     let b = if now <= target {
-        (now + CELL_SIZE - target, Cmd::Sub)
+        Cmd::Sub(now + CELL_SIZE - target)
     } else {
-        (CELL_SIZE - now + target, Cmd::Add)
+        Cmd::Add(CELL_SIZE - now + target)
     };
-    if a.0 <= b.0 {
+    if a.len() <= b.len() {
         a
     } else {
         b
@@ -56,23 +76,23 @@ fn get_target() -> Vec<u8> {
         .collect()
 }
 
-fn in_one_u8(target: &[u8]) -> Vec<Cmd> {
+fn in_one_u8(target: &[u8]) -> (usize, Vec<Cmd>) {
+    let mut len = 0;
     let mut cmds = Vec::new();
     let mut now = 0;
     for &c in target.iter() {
-        let (n, cmd) = closest_u8_change(now, c);
-        for _ in 0..n {
-            cmds.push(cmd)
-        }
+        let cmd = closest_u8_change(now, c);
+        len += cmd.len() + 1;
+        cmds.push(cmd);
         cmds.push(Cmd::Put);
         now = c;
     }
-    cmds
+    (len, cmds)
 }
 
 fn main() {
     let target = get_target();
-    for cmd in in_one_u8(&target) {
+    for cmd in in_one_u8(&target).1 {
         print!("{}", cmd);
     }
     println!()
